@@ -12,12 +12,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     uart->setDataToSend(dataToSend);
 
-    // Populate available COM ports
-    // const auto ports = QSerialPortInfo::availablePorts();
-    // for (const QSerialPortInfo &port : ports) {
-    //     ui->comboBoxCom->addItem(port.portName());
-    // }
-    // Connect signals and slots
+    // Connect signals and slots for UI and UART
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::toggleConnectDisconnect);
     connect(uart, &FirmwareUART::transmissionSpeedUpdated, this, &MainWindow::updateTransmissionSpeed);
     connect(uart, &FirmwareUART::receiveSpeedUpdated, this, &MainWindow::updateReceiveSpeed);
@@ -27,9 +22,10 @@ MainWindow::MainWindow(QWidget *parent)
     // Connect dataReceived signal to appendReceivedData slot
     connect(uart, &FirmwareUART::dataReceived, this, &MainWindow::appendReceivedData);
 
+    // Timer to periodically update the available ports
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &MainWindow::updateAvailablePorts);
-    timer->start(2000);  // Adjust the interval as needed, e.g., every 2 seconds
+    timer->start(2000);  // Every 2 seconds
 
     updateAvailablePorts();
 }
@@ -41,7 +37,7 @@ MainWindow::~MainWindow() {
 
 void MainWindow::toggleConnectDisconnect() {
     if (ui->btnConnect->text() == "Connect") {
-        // If logging is enabled, try to set up the log file
+        // Handle log file setup based on UI input
         if (ui->radioButtonLog->isChecked()) {
             QString filePath = ui->lineEditLocation->text();
             if (filePath.isEmpty()) {
@@ -56,7 +52,7 @@ void MainWindow::toggleConnectDisconnect() {
             uart->closeLogFile();  // Ensure no log file is open if logging is disabled
         }
 
-        // Get port name and baud rate from UI and connect to the port
+        // Connect to the specified port and baud rate
         QString portName = ui->comboBoxCom->currentText();
         int baudRate = ui->lineEditBaudRate->text().toInt();
         if (uart->connectToPort(portName, baudRate)) {
@@ -65,16 +61,14 @@ void MainWindow::toggleConnectDisconnect() {
             QMessageBox::critical(this, "Connection Failed", "Could not connect to the port.");
         }
     } else {
-        // Disconnect from the port and close any open log file
-        uart->disconnectFromPort();
+        uart->disconnectFromPort(); // Disconnect from the port and close any open log file
         uart->closeLogFile();
         ui->btnConnect->setText("Connect");
     }
 }
 
 void MainWindow::appendReceivedData(const QByteArray &data) {
-    // Directly append the received data to the txtConsole
-    ui->txtConsole->append(QString::fromUtf8(data));
+    ui->txtConsole->append(QString::fromUtf8(data));// Display received data in the console
 }
 
 void MainWindow::updateTransmissionSpeed(double speedBps) {
@@ -86,6 +80,7 @@ void MainWindow::updateReceiveSpeed(double speedBps) {
 }
 
 void MainWindow::updateConnectionStatus(bool isConnected) {
+    // Notify the user if disconnected unexpectedly
     if (!isConnected && ui->btnConnect->text() == "Disconnect") {
         QMessageBox::warning(this, "Disconnected", "Lost connection to the device.");
         ui->btnConnect->setText("Connect");
@@ -110,7 +105,7 @@ void MainWindow::updateAvailablePorts() {
         previousPortNames << port.portName();
     }
 
-    // Check if the list of port names has changed
+    // If available ports changed, update the combo box and notify if the current port is disconnected
     if (currentPortNames != previousPortNames) {
         // Clear and repopulate the combo box
         ui->comboBoxCom->clear();
@@ -134,6 +129,6 @@ void MainWindow::updateAvailablePorts() {
 
 void MainWindow::clearConsole()
 {
-    ui->txtConsole->clear();
+    ui->txtConsole->clear(); // Clear all output in the console
 }
 

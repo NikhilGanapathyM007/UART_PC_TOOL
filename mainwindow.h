@@ -9,6 +9,7 @@ namespace Ui {
 class MainWindow;
 }
 
+// MainWindow class for managing UI and UART interactions
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -17,16 +18,16 @@ public:
     ~MainWindow();
 
 private slots:
-    void toggleConnectDisconnect();
-    void updateTransmissionSpeed(double speedBps);
-    void updateReceiveSpeed(double speedBps);
-    void updateConnectionStatus(bool isConnected);
-    void clearConsole();
-    void appendReceivedData(const QByteArray &data);
+    void toggleConnectDisconnect();                 // Handle connect/disconnect button
+    void updateTransmissionSpeed(double speedBps);  // Update UI with transmission speed
+    void updateReceiveSpeed(double speedBps);       // Update UI with receive speed
+    void updateConnectionStatus(bool isConnected);  // Update UI on connection status change
+    void clearConsole();                            // Clear the console output
+    void appendReceivedData(const QByteArray &data);// Append received data to console
 
 private:
     Ui::MainWindow *ui;
-    FirmwareUART *uart;  // UART object
+    FirmwareUART *uart;  // UART object for handling serial communication
     QList<QSerialPortInfo> previousPorts;  // Store the last known list of ports
     void updateAvailablePorts();           // Method to refresh and update the combo box
 };

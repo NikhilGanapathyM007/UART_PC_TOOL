@@ -14,10 +14,12 @@ FirmwareUART::~FirmwareUART() {
 }
 
 bool FirmwareUART::connectToPort(const QString &portName, int baudRate) {
+    // Close the port if already open
     if (serialPort->isOpen()) {
         serialPort->close();
     }
 
+    // Set up port parameters
     serialPort->setPortName(portName);
     serialPort->setBaudRate(baudRate);
     serialPort->setDataBits(QSerialPort::Data8);
@@ -25,10 +27,11 @@ bool FirmwareUART::connectToPort(const QString &portName, int baudRate) {
     serialPort->setStopBits(QSerialPort::OneStop);
     serialPort->setFlowControl(QSerialPort::NoFlowControl);
 
+    // Try to open the port and connect signal for receiving data
     if (serialPort->open(QIODevice::ReadWrite)) {
         connect(serialPort, &QSerialPort::readyRead, this, &FirmwareUART::receiveData);
         emit connectionStatusChanged(true);
-        sendData();
+        sendData(); // Send initial data upon connection
         return true;
     } else {
         emit connectionStatusChanged(false);
@@ -37,6 +40,7 @@ bool FirmwareUART::connectToPort(const QString &portName, int baudRate) {
 }
 
 void FirmwareUART::disconnectFromPort() {
+    // Close the port and update connection status
     if (serialPort->isOpen()) {
         serialPort->close();
         emit connectionStatusChanged(false);
@@ -48,6 +52,7 @@ bool FirmwareUART::isConnected() const {
 }
 
 void FirmwareUART::sendData() {
+    // Check if serial port is open
     if (!serialPort || !serialPort->isOpen()) {
         return;
     }
@@ -65,16 +70,16 @@ void FirmwareUART::sendData() {
         serialPort->waitForBytesWritten();
         totalBytesSent += bytesSent;
 
+        // Calculate speed in bits per second
         qint64 elapsedUs = timer.elapsed() * 1000;  // Convert to microseconds
         double speedBps = (elapsedUs > 0) ? (bytesSent * 8 * 1e6) / elapsedUs : 0.0;
         emit transmissionSpeedUpdated(speedBps);
 
+        // Emit data and speed to UI
         QString message = QString("Sent data: %1 - Speed: %2 bps").arg(QString(packet), QString::number(speedBps, 'f', 2));
-
-        // Print to console
         emit dataReceived(message.toUtf8());
 
-        // Log if enabled
+        // Log if logging is enabled
         if (loggingEnabled && logFile && logFile->isOpen()) {
             QTextStream out(logFile);
             out << message << "\n";
@@ -84,46 +89,17 @@ void FirmwareUART::sendData() {
     emit dataSent();
 }
 
-/*void FirmwareUART::receiveData() {
-    QByteArray receivedData;
-    QElapsedTimer timer;
-    timer.start();
-    qint64 totalBytesReceived = 0;
-
-    while (serialPort->waitForReadyRead(100)) {
-        QByteArray chunk = serialPort->readAll();
-        receivedData.append(chunk);
-        totalBytesReceived += chunk.size();
-
-        qint64 elapsedUs = timer.elapsed() * 1000;  // Convert to microseconds
-        double speedBps = (elapsedUs > 0) ? (totalBytesReceived * 8 * 1e6) / elapsedUs : 0.0;
-        emit receiveSpeedUpdated(speedBps);
-
-        // Console output
-        qDebug() << "Received data:" << QString(chunk) << "- Speed:" << speedBps << "bps";
-
-        // Log if enabled
-        if (loggingEnabled && logFile && logFile->isOpen()) {
-            QTextStream out(logFile);
-            out << "Received data: " << QString(chunk) << " - Speed: " << speedBps << " bps\n";
-        }
-
-        timer.restart();
-    }
-
-    emit dataReceived(receivedData);
-}*/
-
 void FirmwareUART::receiveData() {
-    static QElapsedTimer timer;  // Static to keep time between multiple data chunks
+    static QElapsedTimer timer;  // Timer for measuring speed
     if (!timer.isValid()) {
-        timer.start();  // Start the timer on the first call
+        timer.start();  // Start the timer if not already running
     }
 
     QByteArray receivedData = serialPort->readAll();
     qint64 bytesReceived = receivedData.size();
 
     if (bytesReceived > 0) {
+        // Calculate receive speed
         qint64 elapsedUs = timer.elapsed() * 1000;  // Elapsed time in microseconds
         double speedBps = (elapsedUs > 0) ? (bytesReceived * 8 * 1e6) / elapsedUs : 0.0;
 
@@ -134,7 +110,7 @@ void FirmwareUART::receiveData() {
         // Print to console
         emit dataReceived(message.toUtf8());
 
-        // Log if enabled
+        // Log received data if logging is enabled
         if (loggingEnabled && logFile && logFile->isOpen()) {
             QTextStream out(logFile);
             out << message << "\n";
@@ -146,7 +122,7 @@ void FirmwareUART::receiveData() {
 }
 
 bool FirmwareUART::setupLogFile(const QString &filePath) {
-    closeLogFile();
+    closeLogFile(); // Close any existing log file
     logFile = new QFile(filePath);
     if (logFile->open(QIODevice::WriteOnly | QIODevice::Text)) {
         loggingEnabled = true;
@@ -159,6 +135,7 @@ bool FirmwareUART::setupLogFile(const QString &filePath) {
     }
 }
 
+// Close and delete the log file if it exists
 void FirmwareUART::closeLogFile() {
     if (logFile && logFile->isOpen()) {
         logFile->close();
